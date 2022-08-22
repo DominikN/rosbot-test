@@ -1,0 +1,93 @@
+# Quick Start
+# $ docker compose -f compose.rosbot.hardware.yaml up
+
+x-net-config: &vpn-config
+  network_mode: host
+  ipc: host
+  volumes:
+    - ./dds-config.xml:/dds-config.xml
+  environment:
+    - FASTRTPS_DEFAULT_PROFILES_FILE=/dds-config.xml
+    - ROS_DOMAIN_ID=0
+
+services:
+
+  dds-router:
+    image: husarnet/dds-router:v0.4.0
+    restart: unless-stopped
+    network_mode: host
+    ipc: host
+    volumes:
+      - ./router-config.server.yaml:/config.yaml
+    # command: ddsrouter -c /config.yaml -r 10 -d
+    command: >
+      ddsrouter 
+      --config-path /config.yaml 
+      --debug
+
+  navigation:
+    image: husarion/navigation2:galactic
+    <<: *vpn-config
+    restart: unless-stopped
+    volumes:
+      - ./config/nav2_params.yaml:/nav2_params.yaml
+    command: >
+      ros2 launch nav2_bringup navigation_launch.py    
+        params_file:=/nav2_params.yaml
+        use_sim_time:=${USE_SIM_TIME:-False}
+
+  localization-mapping:
+    image: husarion/slam-toolbox:galactic
+    <<: *vpn-config
+    container_name: slam-toolbox
+    restart: unless-stopped
+    volumes:
+      - ./config/slam_params.yaml:/slam_params.yaml
+      - ./maps:/maps
+    command: >
+      ros2 launch slam_toolbox online_sync_launch.py
+        slam_params_file:=/slam_params.yaml
+        use_sim_time:=${USE_SIM_TIME:-False}
+
+  rplidar:
+    image: husarion/rplidar:galactic
+    <<: *vpn-config
+    restart: unless-stopped
+    devices:
+      - /dev/ttyUSB0
+    command: >
+      ros2 launch sllidar_ros2 sllidar_launch.py 
+        serial_baudrate:=${RPLIDAR_BAUDRATE:-115200}
+
+  bridge:
+    image: husarion/ros:galactic-ros1-bridge
+    <<: *vpn-config
+    restart: unless-stopped
+    environment:
+      - ROS_IP=127.0.0.1
+      - ROS_MASTER_URI=http://127.0.0.1:11311
+    command: >
+      ros2 run ros1_bridge dynamic_bridge
+
+  ros-master:
+    image: ros:noetic-ros-core
+    restart: unless-stopped
+    network_mode: host
+    ipc: host
+    environment:
+      - ROS_IP=127.0.0.1
+    command: stdbuf -o L roscore
+
+  rosbot:
+    image: husarion/rosbot:noetic
+    restart: unless-stopped
+    devices:
+      - ${SERIAL_PORT}
+    network_mode: host
+    ipc: host
+    environment:
+      - ROS_IP=127.0.0.1
+      - ROS_MASTER_URI=http://127.0.0.1:11311
+      - SERIAL_PORT=${SERIAL_PORT:?err}
+    command: >
+      roslaunch --wait rosbot_bringup rosbot_docker.launch

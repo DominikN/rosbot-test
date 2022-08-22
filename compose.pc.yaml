@@ -1,0 +1,38 @@
+# Quick Start
+# $ docker compose -f compose.rosbot.hardware.yaml up
+
+x-net-config: &vpn-config
+  network_mode: host
+  ipc: host
+  volumes:
+    - ./dds-config.xml:/dds-config.xml
+  environment:
+    - FASTRTPS_DEFAULT_PROFILES_FILE=/dds-config.xml
+    - ROS_DOMAIN_ID=0
+
+services:
+
+  dds-router:
+    image: husarnet/dds-router:v0.4.0
+    network_mode: host
+    ipc: host
+    volumes:
+      - ./router-config.client.yaml:/config.yaml
+    # command: ddsrouter -c /config.yaml -r 10 -d
+    command: >
+      ddsrouter 
+      --config-path /config.yaml 
+      --debug
+
+  rviz:
+    image: husarion/rviz2:galactic
+    <<: *vpn-config
+    container_name: rviz
+    restart: on-failure
+    volumes:
+      - ./robot_model:/robot_model
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ./config/rosbot.rviz:/root/.rviz2/default.rviz
+    environment:
+      - DISPLAY=${DISPLAY:?err}
+      - LIBGL_ALWAYS_SOFTWARE=1
