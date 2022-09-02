@@ -1,21 +1,18 @@
 # Quick Start
 # $ docker compose -f compose.rosbot.yaml up
 
-# x-net-config:
-#   - &dds-config-file "./dds-config.xml:/dds-config.xml" 
-#   - &dds-config-env "FASTRTPS_DEFAULT_PROFILES_FILE=/dds-config.xml"
-
-x-net-config:
-  - &network_mode "host" 
-  - &restart_policy "unless-stopped"
+x-config: 
+  - full-setup: &basic_setup
+      restart: unless-stopped
+      network_mode: host
+      ipc: host
+  - &restart_policy unless-stopped
 
 services:
 
   dds-router:
+    <<: *basic_setup
     image: husarnet/dds-router:v0.4.0
-    restart: *restart_policy
-    network_mode: *network_mode
-    ipc: *network_mode
     volumes:
       - ./router-config.server.yaml:/config.yaml
     command: >
@@ -24,10 +21,8 @@ services:
       --debug
 
   rplidar:
+    <<: *basic_setup
     image: husarion/rplidar:galactic
-    restart: *restart_policy
-    network_mode: *network_mode
-    ipc: *network_mode
     devices:
       - /dev/ttyUSB0
     command: >

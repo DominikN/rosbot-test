@@ -1,0 +1,21 @@
+# Quick Start
+# $ docker compose -f compose.localization.yaml up
+
+x-config: &basic_setup
+  restart: unless-stopped
+  network_mode: host
+  ipc: host
+
+services:
+
+  localization:
+    <<: *basic_setup
+    image: husarion/navigation2:galactic
+    volumes:
+      - ./config/amcl_params.yaml:/amcl_params.yaml
+      - ./maps:/maps
+    command: >
+      ros2 launch nav2_bringup localization_launch.py    
+        params_file:=/amcl_params.yaml
+        map:=/maps/map.yaml
+        use_sim_time:=${USE_SIM_TIME:-False}

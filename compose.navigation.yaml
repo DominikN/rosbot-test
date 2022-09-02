@@ -1,0 +1,19 @@
+# Quick Start
+# $ docker compose -f compose.navigation.yaml up
+
+x-config: &basic_setup
+  restart: unless-stopped
+  network_mode: host
+  ipc: host
+
+services:
+
+  navigation:
+    <<: *basic_setup
+    image: husarion/navigation2:galactic
+    volumes:
+      - ./config/nav2_params.yaml:/nav2_params.yaml
+    command: >
+      ros2 launch nav2_bringup navigation_launch.py    
+        params_file:=/nav2_params.yaml
+        use_sim_time:=${USE_SIM_TIME:-False}
