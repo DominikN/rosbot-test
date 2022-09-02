@@ -50,7 +50,7 @@ participants:
           ros-discovery-server: true
           id: 1
         addresses:
-          - domain: rosbot2r
+          - domain: rosbot
             port: 11811
             transport: udp
     listening-addresses:

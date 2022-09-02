@@ -45,7 +45,7 @@ participants:
           ros-discovery-server: true
           id: 2
         addresses:
-          - domain: legion-y540
+          - domain: pc
             port: 11811
             transport: udp
     listening-addresses:

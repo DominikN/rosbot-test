@@ -1,17 +1,37 @@
 # Quick Start
-# $ docker compose -f compose.pc.yaml up
+# $ docker compose -f compose.rosbot.yaml up
+
+# x-net-config:
+#   - &dds-config-file "./dds-config.xml:/dds-config.xml" 
+#   - &dds-config-env "FASTRTPS_DEFAULT_PROFILES_FILE=/dds-config.xml"
 
 x-net-config:
-  - &dds-config-file "./dds-config.xml:/dds-config.xml" 
-  - &dds-config-env "FASTRTPS_DEFAULT_PROFILES_FILE=/dds-config.xml"
+  - &network_mode "service:husarnet-pc" 
+  - &restart_policy "unless-stopped"
 
 services:
 
+  husarnet-pc:
+    image: husarnet/husarnet
+    ipc: shareable
+    restart: *restart_policy
+    volumes:
+      - /var/lib/husarnet
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=0
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+    environment:
+      - HOSTNAME=pc
+      - JOINCODE
+
   dds-router:
     image: husarnet/dds-router:v0.4.0
-    restart: unless-stopped
-    network_mode: host
-    ipc: host
+    restart: *restart_policy
+    network_mode: *network_mode
+    ipc: *network_mode
     volumes:
       - ./router-config.client.yaml:/config.yaml
     command: >
@@ -19,56 +39,43 @@ services:
       --config-path /config.yaml 
       --debug
 
+  rviz:
+    image: husarion/rviz2:galactic
+    container_name: rviz
+    restart: *restart_policy
+    network_mode: *network_mode
+    ipc: *network_mode
+    volumes:
+      - ./robot_model:/robot_model
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ./config/rosbot.rviz:/root/.rviz2/default.rviz
+    environment:
+      - DISPLAY=${DISPLAY:?err}
+      - LIBGL_ALWAYS_SOFTWARE=1
+
   navigation:
     image: husarion/navigation2:galactic
-    restart: unless-stopped
-    network_mode: host
-    ipc: host
+    restart: *restart_policy
+    network_mode: *network_mode
+    ipc: *network_mode
     volumes:
       - ./config/nav2_params.yaml:/nav2_params.yaml
-      # - *dds-config-file
-    environment:
-      # - *dds-config-env
-      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
-      - RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}
     command: >
       ros2 launch nav2_bringup navigation_launch.py    
         params_file:=/nav2_params.yaml
         use_sim_time:=${USE_SIM_TIME:-False}
-
+        
   localization-mapping:
     image: husarion/slam-toolbox:galactic
-    restart: unless-stopped
-    network_mode: host
-    ipc: host
     container_name: slam-toolbox
+    restart: *restart_policy
+    network_mode: *network_mode
+    ipc: *network_mode
     volumes:
       - ./config/slam_params.yaml:/slam_params.yaml
       - ./maps:/maps
-      # - *dds-config-file
-    environment:
-      # - *dds-config-env
-      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
-      - RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}
     command: >
       ros2 launch slam_toolbox online_sync_launch.py
         slam_params_file:=/slam_params.yaml
         use_sim_time:=${USE_SIM_TIME:-False}
 
-  rviz:
-    image: husarion/rviz2:galactic
-    container_name: rviz
-    restart: on-failure
-    network_mode: host
-    ipc: host
-    volumes:
-      - ./robot_model:/robot_model
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
-      - ./config/rosbot.rviz:/root/.rviz2/default.rviz
-      # - *dds-config-file
-    environment:
-      - DISPLAY=${DISPLAY:?err}
-      - LIBGL_ALWAYS_SOFTWARE=1
-      - ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-0}
-      - RMW_IMPLEMENTATION=${RMW_IMPLEMENTATION:-rmw_fastrtps_cpp}
-      # - *dds-config-env
