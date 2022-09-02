@@ -6,26 +6,10 @@
 #   - &dds-config-env "FASTRTPS_DEFAULT_PROFILES_FILE=/dds-config.xml"
 
 x-net-config:
-  - &network_mode "service:husarnet-rosbot" 
+  - &network_mode "host" 
   - &restart_policy "unless-stopped"
 
 services:
-
-  husarnet-rosbot:
-    image: husarnet/husarnet
-    ipc: shareable
-    restart: *restart_policy
-    volumes:
-      - /var/lib/husarnet
-    sysctls:
-      - net.ipv6.conf.all.disable_ipv6=0
-    cap_add:
-      - NET_ADMIN
-    devices:
-      - /dev/net/tun
-    environment:
-      - HOSTNAME=rosbot
-      - JOINCODE
 
   dds-router:
     image: husarnet/dds-router:v0.4.0
@@ -53,8 +37,6 @@ services:
   bridge:
     image: husarion/ros:galactic-ros1-bridge
     restart: *restart_policy
-    network_mode: *network_mode
-    ipc: *network_mode
     environment: 
       - ROS_MASTER_URI=http://ros-master:11311
     command: >
@@ -75,3 +57,4 @@ services:
       - SERIAL_PORT=${SERIAL_PORT:?err}
     command: >
       roslaunch --wait rosbot_bringup rosbot_docker.launch
+
